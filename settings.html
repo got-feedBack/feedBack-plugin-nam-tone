@@ -1,0 +1,157 @@
+<div>
+    <div class="text-sm font-medium text-gray-400 mb-2">NAM Tone Engine</div>
+    <p class="text-xs text-gray-500 mb-3">
+        Process your guitar through Neural Amp Modeler amp models and cabinet IRs
+        in the browser, or through Slopsmith Desktop's native audio engine when
+        available. Requires a USB audio interface. Click the AMP button in the
+        player controls to enable during playback.
+    </p>
+
+    <div id="nam-engine-mode-section" class="hidden mt-3">
+        <label for="nam-engine-mode-select" class="text-xs font-medium text-gray-400 mb-1 block">Engine</label>
+        <select id="nam-engine-mode-select" onchange="namSetEngineMode(this.value)"
+            class="w-full bg-dark-700 border border-gray-800 rounded-lg px-3 py-2 text-xs text-gray-300 outline-none">
+            <option value="native">Desktop Native</option>
+            <option value="wasm">Browser WASM</option>
+        </select>
+    </div>
+
+    <!-- Browser Input Device -->
+    <div id="nam-browser-device-section" class="mt-3">
+        <label for="nam-device-select" class="text-xs font-medium text-gray-400 mb-1 block">Browser Input Device</label>
+        <select id="nam-device-select" onchange="namSelectDevice(this.value)" onfocus="namPopulateDevices()"
+            class="w-full bg-dark-700 border border-gray-800 rounded-lg px-3 py-2 text-xs text-gray-300 outline-none">
+            <option value="">Default</option>
+        </select>
+    </div>
+
+    <div class="mt-3">
+        <label for="nam-channel-select" class="text-xs font-medium text-gray-400 mb-1 block">Input Channel</label>
+        <select id="nam-channel-select" onchange="namSelectChannel(this.value)"
+            class="w-full bg-dark-700 border border-gray-800 rounded-lg px-3 py-2 text-xs text-gray-300 outline-none">
+            <option value="mono">Mono (mix)</option>
+            <option value="left">Left only</option>
+            <option value="right">Right only</option>
+        </select>
+    </div>
+
+    <!-- Desktop Native Device -->
+    <div id="nam-native-device-section" class="hidden mt-4 border-t border-gray-800 pt-3">
+        <div class="text-xs font-medium text-gray-400 mb-2">Desktop Native Device</div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <div>
+                <label for="nam-native-device-type" class="text-[10px] text-gray-500 mb-1 block">Device Type</label>
+                <select id="nam-native-device-type" onchange="namSelectNativeDeviceType(this.value)"
+                    class="w-full bg-dark-700 border border-gray-800 rounded-lg px-3 py-2 text-xs text-gray-300 outline-none">
+                    <option value="">Default</option>
+                </select>
+            </div>
+            <div>
+                <label for="nam-native-sample-rate" class="text-[10px] text-gray-500 mb-1 block">Sample Rate</label>
+                <select id="nam-native-sample-rate" onchange="namRefreshNativeDeviceOptions()"
+                    class="w-full bg-dark-700 border border-gray-800 rounded-lg px-3 py-2 text-xs text-gray-300 outline-none">
+                    <option value="48000">48000</option>
+                </select>
+            </div>
+            <div>
+                <label for="nam-native-input-device" class="text-[10px] text-gray-500 mb-1 block">Input</label>
+                <select id="nam-native-input-device" onchange="namRefreshNativeDeviceOptions()"
+                    class="w-full bg-dark-700 border border-gray-800 rounded-lg px-3 py-2 text-xs text-gray-300 outline-none">
+                    <option value="">Default</option>
+                </select>
+            </div>
+            <div>
+                <label for="nam-native-output-device" class="text-[10px] text-gray-500 mb-1 block">Output</label>
+                <select id="nam-native-output-device" onchange="namRefreshNativeDeviceOptions()"
+                    class="w-full bg-dark-700 border border-gray-800 rounded-lg px-3 py-2 text-xs text-gray-300 outline-none">
+                    <option value="">Default</option>
+                </select>
+            </div>
+            <div>
+                <label for="nam-native-buffer-size" class="text-[10px] text-gray-500 mb-1 block">Buffer Size</label>
+                <select id="nam-native-buffer-size" onchange="namNativeDeviceSettingChanged()"
+                    class="w-full bg-dark-700 border border-gray-800 rounded-lg px-3 py-2 text-xs text-gray-300 outline-none">
+                    <option value="256">256</option>
+                </select>
+            </div>
+            <div class="flex items-end gap-2">
+                <button type="button" id="nam-native-refresh-button" onclick="namPopulateNativeDevices(true)"
+                    title="Refresh available native device types, input/output devices, sample rates, and buffer sizes"
+                    aria-label="Refresh native audio device types, input and output devices, sample rates, and buffer sizes"
+                    class="flex-1 bg-dark-700 hover:bg-dark-600 rounded-lg px-3 py-2 text-xs text-gray-400 transition">
+                    Refresh
+                </button>
+                <button type="button" id="nam-native-apply-button" onclick="namApplyNativeDevice()"
+                    class="flex-1 bg-dark-700 rounded-lg px-3 py-2 text-xs text-gray-500 transition opacity-60 cursor-not-allowed" disabled
+                    title="Current native audio settings are already applied">
+                    Applied
+                </button>
+            </div>
+            <p id="nam-native-device-status" class="sm:col-span-2 text-[10px] text-gray-500" aria-live="polite">
+                Idle
+            </p>
+        </div>
+    </div>
+
+    <div class="mt-4 border-t border-gray-800 pt-3">
+        <label for="nam-input-gain-slider" class="text-xs font-medium text-gray-400 mb-1 block">
+            Input Gain: <span id="nam-input-gain-label">1.0</span>
+        </label>
+        <input type="range" id="nam-input-gain-slider" min="0" max="10" step="0.1" value="1.0"
+            oninput="namSetInputGain(this.value)"
+            class="w-full accent-accent">
+    </div>
+
+    <div class="mt-3">
+        <label for="nam-output-gain-slider" class="text-xs font-medium text-gray-400 mb-1 block">
+            Output Gain: <span id="nam-output-gain-label">0.50</span>
+        </label>
+        <input type="range" id="nam-output-gain-slider" min="0" max="2" step="0.05" value="0.5"
+            oninput="namSetOutputGain(this.value)"
+            class="w-full accent-accent">
+    </div>
+
+    <div class="mt-3">
+        <label for="nam-gate-slider" class="text-xs font-medium text-gray-400 mb-1 block">
+            Noise Gate: <span id="nam-gate-label">-60 dB</span>
+        </label>
+        <input type="range" id="nam-gate-slider" min="-96" max="0" step="1" value="-60"
+            oninput="namSetGateThreshold(this.value)"
+            class="w-full accent-accent">
+    </div>
+
+    <!-- Preset Test -->
+    <div id="nam-settings-preset-test-section" class="hidden mt-4 border-t border-gray-800 pt-3">
+        <div class="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between sm:gap-3 mb-1">
+            <label for="nam-settings-preset-select" class="text-[10px] text-gray-500 block">Test Preset</label>
+            <span id="nam-settings-preset-test-status" class="text-[10px] text-gray-500 sm:text-right" aria-live="polite" role="status">Idle</span>
+        </div>
+        <div class="flex items-center gap-2">
+            <select id="nam-settings-preset-select" onchange="namSettingsPresetChanged()"
+                class="flex-1 min-w-0 bg-dark-700 border border-gray-800 rounded-lg px-3 py-2 text-xs text-gray-300 outline-none">
+                <option value="">No presets</option>
+            </select>
+            <button type="button" id="nam-settings-preset-test-button" onclick="namTestSettingsPreset()" disabled
+                class="px-3 py-2 bg-green-700/40 hover:bg-green-700/60 rounded-lg text-xs text-green-300 transition opacity-60 cursor-not-allowed">
+                Test
+            </button>
+        </div>
+        <p class="mt-1 text-[10px] text-gray-500">
+            Uses the selected preset's saved gain and gate values.
+            <button type="button" onclick="showScreen('plugin-nam_tone')"
+                class="text-accent hover:text-accent-light underline underline-offset-2">
+                Edit presets
+            </button>
+        </p>
+    </div>
+
+    <!-- Guitar Stem Ducking -->
+    <div class="flex items-center gap-3 mt-4 border-t border-gray-800 pt-3">
+        <label for="nam-duck-guitar" class="flex items-center gap-2 text-sm text-gray-300">
+            <input type="checkbox" id="nam-duck-guitar" checked
+                   onchange="namSetDuckGuitar(this.checked)"
+                   class="accent-accent">
+            Auto-mute guitar stem when AMP is active
+        </label>
+    </div>
+</div>

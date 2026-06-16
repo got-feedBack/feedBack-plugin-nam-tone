@@ -1,0 +1,14 @@
+{
+  "id": "nam_tone",
+  "name": "NAM Tone Engine",
+  "version": "1.2.0",
+  "private": false,
+  "nav": { "label": "NAM", "screen": "nam-tone" },
+  "screen": "screen.html",
+  "script": "screen.js",
+  "settings": {
+    "html": "settings.html",
+    "server_files": ["nam_tone.db", "nam_models/", "nam_irs/"]
+  },
+  "routes": "routes.py"
+}

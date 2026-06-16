@@ -1,0 +1,103 @@
+<div class="max-w-4xl mx-auto px-6 pt-24 pb-16">
+    <button onclick="showScreen('home')" class="text-gray-500 hover:text-white text-sm mb-6 flex items-center gap-1">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg> Back
+    </button>
+    <h2 class="text-3xl font-bold text-white mb-2">NAM Tone Engine</h2>
+    <p class="text-gray-500 mb-8">Play through Neural Amp Modeler amp models and cabinet IRs in your browser. Upload .nam models and .wav impulse responses, create presets, and map them to song tones for automatic switching.</p>
+
+    <!-- Status -->
+    <div id="nam-status" class="mb-6"></div>
+
+    <!-- Models Section -->
+    <div class="mb-8">
+        <h3 class="text-lg font-semibold text-white mb-3">Amp Models</h3>
+        <div class="flex gap-3 mb-3">
+            <input type="file" id="nam-model-file" accept=".nam" class="hidden">
+            <button onclick="document.getElementById('nam-model-file').click()"
+                class="bg-dark-600 hover:bg-dark-500 px-4 py-2 rounded-xl text-sm text-gray-300 transition">Choose .nam file</button>
+            <button onclick="namUploadModel()"
+                class="bg-accent hover:bg-accent-light px-5 py-2 rounded-xl text-sm text-white transition">Upload</button>
+        </div>
+        <div id="nam-model-list" class="space-y-1"></div>
+    </div>
+
+    <!-- IRs Section -->
+    <div class="mb-8">
+        <h3 class="text-lg font-semibold text-white mb-3">Cabinet IRs</h3>
+        <div class="flex gap-3 mb-3">
+            <input type="file" id="nam-ir-file" accept=".wav" class="hidden">
+            <button onclick="document.getElementById('nam-ir-file').click()"
+                class="bg-dark-600 hover:bg-dark-500 px-4 py-2 rounded-xl text-sm text-gray-300 transition">Choose .wav file</button>
+            <button onclick="namUploadIR()"
+                class="bg-accent hover:bg-accent-light px-5 py-2 rounded-xl text-sm text-white transition">Upload</button>
+        </div>
+        <div id="nam-ir-list" class="space-y-1"></div>
+    </div>
+
+    <!-- Presets Section -->
+    <div class="mb-8">
+        <h3 class="text-lg font-semibold text-white mb-3">Presets</h3>
+        <div class="bg-dark-700/50 border border-gray-800/50 rounded-xl p-4 mb-4">
+            <div class="grid grid-cols-2 gap-3 mb-3">
+                <div>
+                    <label class="text-[10px] text-gray-500 block mb-1">Preset Name</label>
+                    <input type="text" id="nam-preset-name" placeholder="My Clean Tone"
+                        class="w-full bg-dark-600 border border-gray-700 rounded-lg px-3 py-1.5 text-sm text-gray-300 placeholder-gray-600 outline-none">
+                </div>
+                <div>
+                    <label class="text-[10px] text-gray-500 block mb-1">Model</label>
+                    <select id="nam-preset-model" onfocus="namPopulatePresetDropdowns()"
+                        class="w-full bg-dark-600 border border-gray-700 rounded-lg px-2 py-1.5 text-xs text-gray-300 outline-none">
+                        <option value="">-- None --</option>
+                    </select>
+                </div>
+            </div>
+            <div class="grid grid-cols-2 gap-3 mb-3">
+                <div>
+                    <label class="text-[10px] text-gray-500 block mb-1">Cabinet IR</label>
+                    <select id="nam-preset-ir" onfocus="namPopulatePresetDropdowns()"
+                        class="w-full bg-dark-600 border border-gray-700 rounded-lg px-2 py-1.5 text-xs text-gray-300 outline-none">
+                        <option value="">-- None --</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="text-[10px] text-gray-500 block mb-1">Gate Threshold (dBFS)</label>
+                    <input type="number" id="nam-preset-gate" value="-60" min="-96" max="0" step="1"
+                        class="w-full bg-dark-600 border border-gray-700 rounded-lg px-2 py-1.5 text-xs text-gray-300 outline-none">
+                </div>
+            </div>
+            <div class="grid grid-cols-2 gap-3 mb-3">
+                <div>
+                    <label class="text-[10px] text-gray-500 block mb-1">Input Gain</label>
+                    <input type="number" id="nam-preset-input-gain" value="1.0" min="0" max="10" step="0.1"
+                        class="w-full bg-dark-600 border border-gray-700 rounded-lg px-2 py-1.5 text-xs text-gray-300 outline-none">
+                </div>
+                <div>
+                    <label class="text-[10px] text-gray-500 block mb-1">Output Gain</label>
+                    <input type="number" id="nam-preset-output-gain" value="0.5" min="0" max="2" step="0.05"
+                        class="w-full bg-dark-600 border border-gray-700 rounded-lg px-2 py-1.5 text-xs text-gray-300 outline-none">
+                </div>
+            </div>
+            <button onclick="namSavePreset()"
+                class="px-5 py-2 bg-accent hover:bg-accent-light rounded-lg text-sm text-white transition">Save Preset</button>
+        </div>
+        <div id="nam-preset-list" class="space-y-2"></div>
+    </div>
+
+    <!-- Tone Mapping Section -->
+    <div class="mb-8">
+        <h3 class="text-lg font-semibold text-white mb-3">Song Tone Mapping</h3>
+        <p class="text-gray-500 text-xs mb-4">Map each tone in a song to a preset for automatic switching during playback.</p>
+        <div class="flex gap-3 mb-6">
+            <input type="text" id="nam-search" placeholder="Search a song to configure tone mappings..." onkeydown="if(event.key==='Enter')namSearchSongs()"
+                class="flex-1 bg-dark-700 border border-gray-800 rounded-xl px-4 py-2.5 text-sm text-gray-300 placeholder-gray-600 focus:border-accent/50 outline-none">
+            <button onclick="namSearchSongs()" class="bg-dark-600 hover:bg-dark-500 px-5 py-2.5 rounded-xl text-sm text-gray-300 transition">Search</button>
+        </div>
+        <div id="nam-search-results" class="space-y-2 mb-6"></div>
+
+        <div id="nam-mapping-editor" class="hidden">
+            <h3 class="text-lg font-semibold text-white mb-4" id="nam-mapping-title"></h3>
+            <div id="nam-tone-mappings" class="space-y-3"></div>
+        </div>
+    </div>
+</div>
