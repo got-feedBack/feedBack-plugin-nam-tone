@@ -85,19 +85,8 @@ def _safe_child(root: Path, name: str | None):
 
 
 def _mapping_filenames(filename: str) -> list[str]:
-    """Return filename aliases that should share tone mappings.
-
-    Sloppak playback uses paths like "sloppak/boststar.sloppak" while the
-    same song is often mapped from the original PSARC filename
-    "boststar_p.psarc". Keep the exact filename first so direct mappings win.
-    """
-    names = [filename]
-    normalized = filename.replace("\\", "/")
-    if normalized.startswith("sloppak/") and normalized.lower().endswith(".sloppak"):
-        psarc_name = f"{Path(normalized).stem}_p.psarc"
-        if psarc_name not in names:
-            names.append(psarc_name)
-    return names
+    """Return filename aliases that should share tone mappings."""
+    return [filename]
 
 
 def setup(app, context):
@@ -340,58 +329,10 @@ def setup(app, context):
 
     @app.get("/api/plugins/nam_tone/song-tones/{filename:path}")
     def get_song_tones(filename: str):
-        from psarc import read_psarc_entries
-        dlc = context["get_dlc_dir"]()
-        if not dlc:
-            return {"error": "DLC folder not configured"}
-
-        candidate_names = filename_aliases(filename)
-        if filename.replace("\\", "/").lower().endswith(".sloppak"):
-            candidate_names = [n for n in candidate_names if n.lower().endswith(".psarc")] + [filename]
-
-        files = None
-        for candidate_name in candidate_names:
-            candidate_path = _safe_child(dlc, candidate_name)
-            if candidate_path is None or not candidate_path.exists():
-                continue
-            try:
-                files = read_psarc_entries(str(candidate_path), ["*.json"])
-                break
-            except ValueError:
-                continue
-        if files is None:
-            return {"error": "File not found or not a PSARC"}
-
-        tones = []
-        seen = set()
-
-        for path, data in sorted(files.items()):
-            if not path.endswith(".json"):
-                continue
-            try:
-                j = json.loads(data)
-            except json.JSONDecodeError:
-                import re
-                text = data.decode("utf-8", errors="ignore")
-                text = re.sub(r",\s*([}\]])", r"\1", text)
-                try:
-                    j = json.loads(text)
-                except Exception:
-                    continue
-
-            for k, v in j.get("Entries", {}).items():
-                attrs = v.get("Attributes", {})
-                arr_name = attrs.get("ArrangementName", "")
-                if arr_name in ("Vocals", "ShowLights", "JVocals"):
-                    continue
-                for t in attrs.get("Tones", []):
-                    key = t.get("Key", "")
-                    name = t.get("Name", key)
-                    if key and key not in seen:
-                        seen.add(key)
-                        tones.append({"key": key, "name": name, "arrangement": arr_name})
-
-        return {"tones": tones}
+        """Auto-extraction of tone keys from a song has been removed
+        (it read the encrypted CDLC container). Map tones manually;
+        returns an empty list so the UI degrades gracefully."""
+        return {"tones": []}
 
     # ── File Serving ──────────────────────────────────────────────────────
 
