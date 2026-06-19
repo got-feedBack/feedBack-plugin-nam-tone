@@ -1314,7 +1314,7 @@ function _namInjectButton() {
     btn.textContent = 'AMP';
     btn.title = 'Toggle NAM amp modeling';
     btn.onclick = _namToggle;
-    controls.insertBefore(btn, closeBtn);
+    if (closeBtn && closeBtn.parentNode === controls) controls.insertBefore(btn, closeBtn); else controls.appendChild(btn);
     _namUpdateAmpButton();
 }
 
