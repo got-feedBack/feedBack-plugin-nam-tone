@@ -3,12 +3,23 @@
   "name": "NAM Tone Engine",
   "version": "1.2.0",
   "private": false,
-  "nav": { "label": "NAM", "screen": "nam-tone" },
+  "nav": {
+    "label": "NAM",
+    "screen": "nam-tone"
+  },
   "screen": "screen.html",
   "script": "screen.js",
   "settings": {
     "html": "settings.html",
-    "server_files": ["nam_tone.db", "nam_models/", "nam_irs/"]
+    "server_files": [
+      "nam_tone.db",
+      "nam_models/",
+      "nam_irs/"
+    ],
+    "category": "audio"
   },
-  "routes": "routes.py"
+  "routes": "routes.py",
+  "category": "audio",
+  "description": "Neural amp modeling (NAM) tone engine.",
+  "icon": "assets/thumb.svg"
 }
