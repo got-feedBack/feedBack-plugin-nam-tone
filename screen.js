@@ -60,7 +60,7 @@ const _namStorageKey = 'slopsmith_nam_tone';
 const _namNativeDeviceStorageKey = 'slopsmith-audio-device';
 
 function _namDesktopAudio() {
-    const api = window.slopsmithDesktop && window.slopsmithDesktop.audio;
+    const api = window.feedBackDesktop && window.feedBackDesktop.audio;
     if (!api || typeof api.loadPreset !== 'function' || typeof api.startAudio !== 'function') return null;
     if (typeof api.clearChain !== 'function') return null;
     return api;

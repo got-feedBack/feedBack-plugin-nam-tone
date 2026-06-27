@@ -27,11 +27,11 @@ Guitar (Desktop audio device)
   → Desktop audio output
 ```
 
-The browser path captures your guitar via the Web Audio API, processes it through a Neural Amp Modeler compiled to WebAssembly running inside an AudioWorkletProcessor, then applies a cabinet impulse response using the browser's native ConvolverNode. The Desktop path detects `window.slopsmithDesktop.audio` and asks the native audio engine to load the same preset as a native NAM + IR chain. The processed signal is routed to your speakers while the song's guitar stem is automatically muted.
+The browser path captures your guitar via the Web Audio API, processes it through a Neural Amp Modeler compiled to WebAssembly running inside an AudioWorkletProcessor, then applies a cabinet impulse response using the browser's native ConvolverNode. The Desktop path detects `window.feedBackDesktop.audio` and asks the native audio engine to load the same preset as a native NAM + IR chain. The processed signal is routed to your speakers while the song's guitar stem is automatically muted.
 
 ### Slopsmith Desktop Native Mode
 
-When running inside Slopsmith Desktop, the plugin automatically prefers the native audio engine if the required Desktop bridge APIs are available. Presets are translated by the backend route `/api/plugins/nam_tone/native-preset/{preset_id}` into the native signal-chain JSON format expected by `window.slopsmithDesktop.audio.loadPreset()`.
+When running inside Slopsmith Desktop, the plugin automatically prefers the native audio engine if the required Desktop bridge APIs are available. Presets are translated by the backend route `/api/plugins/nam_tone/native-preset/{preset_id}` into the native signal-chain JSON format expected by `window.feedBackDesktop.audio.loadPreset()`.
 
 Native mode keeps the existing browser/WASM path as a fallback. If the Desktop bridge is unavailable, the plugin behaves like the browser version.
 
