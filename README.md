@@ -55,6 +55,15 @@ Cabinet impulse responses (`.wav` files) simulate the speaker cabinet. Without a
 
 Songs can have multiple tones (e.g., Clean, Distortion, Lead). You can map each tone to a different preset. During playback, the plugin polls `highway.getToneChanges()` every 100ms and automatically switches the NAM model and IR when the active tone changes.
 
+### Player Preset Picker
+
+Next to the **AMP** toggle in the player there's a preset dropdown, so you can change tone without leaving the song. On v3 both controls sit in the player's **Plugins** popover (`feedBack.ui.playerControlSlot()`); on hosts without that slot they go into `#player-controls`.
+
+- **Song tones** (the default) follows the song's tone mappings, as described above.
+- Pick a preset while AMP is on and it applies **immediately**. Tone auto-switching then pauses for the rest of that song so your pick isn't reverted at the next tone change. Choosing *Song tones* again hands control back to the mappings, and the next song resumes them automatically.
+- With AMP off, the pick is **remembered** and applied the next time AMP is turned on.
+- On a song with **no tone mapping**, the remembered pick is the tone AMP uses.
+
 ### Guitar Stem Ducking
 
 When playing sloppak songs with separated stems, enabling AMP automatically mutes the guitar stem so you only hear your own playing through the amp model. The stem volume is restored when AMP is disabled. This can be toggled in settings.

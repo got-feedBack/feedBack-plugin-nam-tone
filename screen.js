@@ -65,6 +65,14 @@ let _namEngineMode = 'native'; // 'native' | 'wasm'
 let _namTestMode = false;
 let _namTestPresetId = null;
 let _namTestBackup = null;
+// Player preset picker. `_namPlayerPresetId` is the user's pick ('' = follow
+// the song's tone mappings); it outlives AMP toggles and songs, and is the
+// preset AMP-on uses when the song has no mapping. `_namManualOverride` is
+// set by an explicit pick during the current song: it pauses automatic
+// per-tone switching (which would otherwise revert the pick within one
+// 100 ms poll on a mapped song) until the next song loads.
+let _namPlayerPresetId = '';
+let _namManualOverride = false;
 let _namSettingsPresetTestStatusHidden = false;
 
 const _namStorageKey = 'slopsmith_nam_tone';
@@ -1021,6 +1029,8 @@ async function _namLoadMappings(filename) {
     _namCurrentFilename = filename;
     _namMappings = {};
     _namCurrentTone = null;
+    // A pick overrides the mappings for the song it was made in only.
+    _namManualOverride = false;
     try {
         const resp = await fetch(`/api/plugins/nam_tone/mappings/${encodeURIComponent(decodeURIComponent(filename))}`);
         const data = await resp.json();
@@ -1038,7 +1048,10 @@ async function _namLoadMappings(filename) {
                         .catch(() => {});
                 }
             }
-            _namApplyCurrentSongTone(true).catch(e => console.warn('[NAM] Failed to apply active mapped tone:', e.message));
+            // No mapping for this song → the player picker's preset, if any.
+            _namApplyCurrentSongTone(true)
+                .then(mapped => (mapped ? true : _namApplyPlayerPreset()))
+                .catch(e => console.warn('[NAM] Failed to apply active mapped tone:', e.message));
         }
     } catch (e) {
         console.warn('[NAM] Failed to load mappings:', e.message);
@@ -1192,7 +1205,7 @@ async function _namEnsureNativeAlive() {
 }
 
 function _namCheckToneChange() {
-    if (!_namEnabled || !_namCurrentFilename || _namBuilding) return;
+    if (!_namEnabled || !_namCurrentFilename || _namBuilding || _namManualOverride) return;
     if ((_namNativeMode ? !_namNativeReady : !_namWasmReady) || Object.keys(_namMappings).length === 0) return;
 
     _namEnsureNativeAlive();
@@ -1314,20 +1327,100 @@ async function _namTeardown() {
 
 // ── Player Controls ────────────────────────────────────────────────────────
 
-function _namInjectButton() {
-    const controls = document.getElementById('player-controls');
-    if (!controls || document.getElementById('btn-nam')) return;
-
-    const closeBtn = controls.querySelector('button:last-child');
-    const btn = document.createElement('button');
-    btn.id = 'btn-nam';
-    btn.className = 'px-3 py-1.5 bg-dark-600 hover:bg-dark-500 rounded-lg text-xs text-gray-400 transition';
-    btn.textContent = 'AMP';
-    btn.title = 'Toggle NAM amp modeling';
-    btn.onclick = _namToggle;
-    if (closeBtn && closeBtn.parentNode === controls) controls.insertBefore(btn, closeBtn); else controls.appendChild(btn);
-    _namUpdateAmpButton();
+// v3 plugin-control slot (docs/plugin-v3-ui.md in core), or null on a host
+// without it — then controls go into the legacy #player-controls bar.
+function _namPlayerSlot() {
+    const fb = window.feedBack;
+    return (fb && fb.uiVersion === 'v3' && fb.ui && typeof fb.ui.playerControlSlot === 'function')
+        ? fb.ui.playerControlSlot() : null;
 }
+
+function _namInjectButton() {
+    const slot = _namPlayerSlot();
+    const controls = slot || document.getElementById('player-controls');
+    if (!controls) return;
+
+    // Guard against the ACTUAL container: a control left in the other one
+    // (or re-homed by the host shim) is moved, not duplicated.
+    let btn = document.getElementById('btn-nam');
+    if (!btn) {
+        btn = document.createElement('button');
+        btn.id = 'btn-nam';
+        btn.className = 'px-3 py-1.5 bg-dark-600 hover:bg-dark-500 rounded-lg text-xs text-gray-400 transition';
+        btn.textContent = 'AMP';
+        btn.title = 'Toggle NAM amp modeling';
+        btn.onclick = _namToggle;
+    }
+    let picker = document.getElementById('nam-preset-picker');
+    if (!picker) {
+        picker = document.createElement('select');
+        picker.id = 'nam-preset-picker';
+        picker.className = 'px-2 py-1.5 bg-dark-600 hover:bg-dark-500 rounded-lg text-xs text-gray-300 transition';
+        picker.title = 'NAM amp preset — switches live while AMP is on';
+        picker.onchange = window.namPlayerSelectPreset;
+    }
+    if (!controls.contains(btn) || !controls.contains(picker)) {
+        // Legacy bar: before the ✕ Close button. The v3 slot has no anchor.
+        const closeBtn = slot ? null : controls.querySelector('button:last-child');
+        const anchor = closeBtn && closeBtn.parentNode === controls && closeBtn !== btn ? closeBtn : null;
+        for (const el of [btn, picker]) {
+            if (anchor) controls.insertBefore(el, anchor); else controls.appendChild(el);
+        }
+    }
+    _namUpdateAmpButton();
+    _namPopulatePlayerPicker().catch(e =>
+        console.warn('[NAM] Failed to populate player preset picker:', e.message || e));
+}
+
+// Fill the player picker: "Song tones" (follow the song's mappings) plus every
+// saved preset, keeping the user's pick selected. A pick whose preset was
+// deleted falls back to "Song tones".
+async function _namPopulatePlayerPicker(presets) {
+    const sel = document.getElementById('nam-preset-picker');
+    if (!sel) return;
+    if (!Array.isArray(presets)) {
+        const resp = await fetch('/api/plugins/nam_tone/presets');
+        presets = await resp.json();
+    }
+    if (_namPlayerPresetId && !presets.some(p => String(p.id) === String(_namPlayerPresetId))) {
+        _namPlayerPresetId = '';
+        _namManualOverride = false;
+    }
+    sel.innerHTML = `<option value="" ${_namPlayerPresetId ? '' : 'selected'}>Song tones</option>` +
+        presets.map(p =>
+            `<option value="${p.id}" ${String(p.id) === String(_namPlayerPresetId) ? 'selected' : ''}>${esc(p.name)}</option>`
+        ).join('');
+    sel.value = _namPlayerPresetId ? String(_namPlayerPresetId) : '';
+}
+
+// Apply the remembered player pick to the running amp. Returns true when a
+// preset was applied.
+async function _namApplyPlayerPreset() {
+    if (!_namPlayerPresetId || !_namEnabled || !_namGraphActive()) return false;
+    const preset = await _namGetPresetById(_namPlayerPresetId);
+    if (!preset) return false;
+    await _namApplyPreset(preset);
+    _namCurrentTone = null;
+    return true;
+}
+
+window.namPlayerSelectPreset = async function() {
+    const sel = document.getElementById('nam-preset-picker');
+    if (!sel) return;
+    _namPlayerPresetId = sel.value || '';
+    _namManualOverride = !!_namPlayerPresetId;
+    try {
+        if (_namPlayerPresetId) {
+            // AMP off: remembered for the next AMP-on.
+            await _namApplyPlayerPreset();
+        } else if (_namEnabled) {
+            // Back to "Song tones": hand control back to the mappings.
+            await _namApplyCurrentSongTone(true);
+        }
+    } catch (e) {
+        console.warn('[NAM] Live preset switch failed:', e.message || e);
+    }
+};
 
 async function _namToggle() {
     _namEnabled = !_namEnabled;
@@ -1342,7 +1435,10 @@ async function _namToggle() {
     _namUpdateAmpButton();
     if (_namEnabled) {
         _namBuildGraph().then(async () => {
-            await _namApplyCurrentSongTone(true);
+            // Song tone mapping first (unless the player picked a preset this
+            // song); otherwise the remembered player pick, if any.
+            const mapped = !_namManualOverride && await _namApplyCurrentSongTone(true);
+            if (!mapped) await _namApplyPlayerPreset();
             _namDuckGuitarStem();
         }).catch(e => {
             _namBuilding = false;
@@ -1598,6 +1694,7 @@ async function _namRefreshPresets() {
 
     // Also update preset dropdowns in tone mapping editor
     _namUpdatePresetDropdowns(presets);
+    _namPopulatePlayerPicker(presets).catch(() => {});
 }
 
 function _namUpdatePresetDropdowns(presets) {
