@@ -1666,14 +1666,38 @@ window.namSavePreset = async function() {
     document.getElementById('nam-preset-name').value = '';
 };
 
+// Make sure `sel` has an <option> for `value`. Assigning a value with no
+// matching option silently leaves the select at "", which namSavePreset then
+// writes back — wiping the preset's model/IR. A file that is no longer on disk
+// still gets an option (flagged) so editing other fields round-trips losslessly.
+function _namEnsureOption(sel, value) {
+    if (!sel || !value) return;
+    if (Array.from(sel.options).some(o => o.value === value)) return;
+    const opt = document.createElement('option');
+    opt.value = value;
+    opt.textContent = value + ' (missing)';
+    sel.appendChild(opt);
+}
+
 window.namEditPreset = async function(presetId) {
     const resp = await fetch('/api/plugins/nam_tone/presets');
     const presets = await resp.json();
     const preset = presets.find(p => p.id === presetId);
     if (!preset) return;
+    // The model/IR selects are only filled lazily (onfocus), so on a fresh
+    // screen they hold just "-- None --". Fill them before assigning.
+    try {
+        await window.namPopulatePresetDropdowns();
+    } catch (e) {
+        console.warn('[NAM] Failed to refresh model/IR lists for edit:', e.message || e);
+    }
+    const modelSel = document.getElementById('nam-preset-model');
+    const irSel = document.getElementById('nam-preset-ir');
+    _namEnsureOption(modelSel, preset.model_file);
+    _namEnsureOption(irSel, preset.ir_file);
     document.getElementById('nam-preset-name').value = preset.name;
-    document.getElementById('nam-preset-model').value = preset.model_file || '';
-    document.getElementById('nam-preset-ir').value = preset.ir_file || '';
+    modelSel.value = preset.model_file || '';
+    irSel.value = preset.ir_file || '';
     document.getElementById('nam-preset-input-gain').value = preset.input_gain;
     document.getElementById('nam-preset-output-gain').value = preset.output_gain;
     document.getElementById('nam-preset-gate').value = preset.gate_threshold;
@@ -2243,11 +2267,17 @@ window.namPopulatePresetDropdowns = async function() {
         const cur = modelSel.value;
         modelSel.innerHTML = '<option value="">-- None --</option>' +
             models.map(m => `<option value="${esc(m.name)}" ${m.name === cur ? 'selected' : ''}>${esc(m.name)}</option>`).join('');
+        // Rebuilding drops a "(missing)" option added for a saved file that is
+        // no longer on disk; keep it so a later Save doesn't write "".
+        _namEnsureOption(modelSel, cur);
+        modelSel.value = cur;
     }
     if (irSel) {
         const cur = irSel.value;
         irSel.innerHTML = '<option value="">-- None --</option>' +
             irs.map(m => `<option value="${esc(m.name)}" ${m.name === cur ? 'selected' : ''}>${esc(m.name)}</option>`).join('');
+        _namEnsureOption(irSel, cur);
+        irSel.value = cur;
     }
 };
 
