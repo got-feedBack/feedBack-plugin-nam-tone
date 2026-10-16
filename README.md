@@ -1,6 +1,6 @@
 # NAM Tone Engine Plugin
 
-Play through Neural Amp Modeler (NAM) amp models and cabinet impulse responses from Slopsmith. In a regular browser, the plugin uses Web Audio + WASM. In Slopsmith Desktop, it can use the native Desktop audio engine so guitar input runs through the JUCE/NAM/IR signal chain instead of the browser AudioContext path.
+Play through Neural Amp Modeler (NAM) amp models and cabinet impulse responses from feedBack. In a regular browser, the plugin uses Web Audio + WASM. In feedBack Desktop, it can use the native Desktop audio engine so guitar input runs through the JUCE/NAM/IR signal chain instead of the browser AudioContext path.
 
 ## How It Works
 
@@ -17,11 +17,11 @@ Guitar (USB interface) → getUserMedia
   → Speakers
 ```
 
-Slopsmith Desktop native mode:
+feedBack Desktop native mode:
 
 ```text
 Guitar (Desktop audio device)
-  → Slopsmith Desktop native audio engine
+  → feedBack Desktop native audio engine
   → NAM processor
   → IR loader
   → Desktop audio output
@@ -29,21 +29,21 @@ Guitar (Desktop audio device)
 
 The browser path captures your guitar via the Web Audio API, processes it through a Neural Amp Modeler compiled to WebAssembly running inside an AudioWorkletProcessor, then applies a cabinet impulse response using the browser's native ConvolverNode. The Desktop path detects `window.feedBackDesktop.audio` and asks the native audio engine to load the same preset as a native NAM + IR chain. The processed signal is routed to your speakers while the song's guitar stem is automatically muted.
 
-### Slopsmith Desktop Native Mode
+### feedBack Desktop Native Mode
 
-When running inside Slopsmith Desktop, the plugin automatically prefers the native audio engine if the required Desktop bridge APIs are available. Presets are translated by the backend route `/api/plugins/nam_tone/native-preset/{preset_id}` into the native signal-chain JSON format expected by `window.feedBackDesktop.audio.loadPreset()`.
+When running inside feedBack Desktop, the plugin automatically prefers the native audio engine if the required Desktop bridge APIs are available. Presets are translated by the backend route `/api/plugins/nam_tone/native-preset/{preset_id}` into the native signal-chain JSON format expected by `window.feedBackDesktop.audio.loadPreset()`.
 
 Native mode keeps the existing browser/WASM path as a fallback. If the Desktop bridge is unavailable, the plugin behaves like the browser version.
 
 The NAM settings panel can configure Desktop native input, output, sample rate, and buffer size directly through the same bridge. It does not depend on the Audio Engine plugin screen being installed, though both UIs share the same saved Desktop audio device settings.
 
-The status panel shows the active mode and the live device-reported native latency from Slopsmith Desktop. This is the driver/device latency reported by the audio backend; physical round-trip calibration requires a separate loopback test and is intentionally not part of this plugin path.
+The status panel shows the active mode and the live device-reported native latency from feedBack Desktop. This is the driver/device latency reported by the audio backend; physical round-trip calibration requires a separate loopback test and is intentionally not part of this plugin path.
 
 ### NAM Models
 
 NAM (Neural Amp Modeler) uses neural networks to model real guitar amplifiers. The `.nam` model files contain the trained weights for a specific amp/pedal tone. Models are loaded into a WASM module compiled from [NeuralAmpModelerCore](https://github.com/sdatkinson/NeuralAmpModelerCore) using Emscripten in single-threaded mode (no SharedArrayBuffer required).
 
-Both **Architecture 1 (A1)** — the original/legacy NAM format — and **Architecture 2 (A2)** — the newer architecture TONE3000 made the default in June 2026 — are supported. The same is true in Slopsmith Desktop's native engine. A2 is a heavier network: it sounds better but costs more CPU, which matters most on the single-threaded browser worklet path.
+Both **Architecture 1 (A1)** — the original/legacy NAM format — and **Architecture 2 (A2)** — the newer architecture TONE3000 made the default in June 2026 — are supported. The same is true in feedBack Desktop's native engine. A2 is a heavier network: it sounds better but costs more CPU, which matters most on the single-threaded browser worklet path.
 
 You can find free `.nam` models at [TONE3000](https://www.tone3000.com/) and other NAM community sites.
 
@@ -71,7 +71,7 @@ When playing sloppak songs with separated stems, enabling AMP automatically mute
 ## Settings
 
 - **Input Device** — Select your USB audio interface for browser/Web Audio mode
-- **Desktop Native Device** — Select Slopsmith Desktop native device type, input, output, sample rate, and buffer size when the Desktop bridge is available
+- **Desktop Native Device** — Select feedBack Desktop native device type, input, output, sample rate, and buffer size when the Desktop bridge is available
 - **Input Channel** — Mono (mix), Left only, or Right only
 - **Input Gain** — Adjust input sensitivity (1.0 = unity)
 - **Output Gain** — Master volume for processed signal
@@ -85,13 +85,13 @@ Preset tests are stopped automatically when you leave the NAM screen so an audit
 
 ## Backup and Restore
 
-The plugin manifest opts into Slopsmith's Settings export/import flow for:
+The plugin manifest opts into feedBack's Settings export/import flow for:
 
 - `nam_tone.db` — presets and tone mappings
 - `nam_models/` — uploaded NAM model files
 - `nam_irs/` — uploaded cabinet IR files
 
-These files live under Slopsmith's plugin config directory and are restored by Slopsmith's settings import flow.
+These files live under feedBack's plugin config directory and are restored by feedBack's settings import flow.
 
 ## Tone Mapping
 
@@ -146,7 +146,7 @@ git submodule update --init --recursive
 em++ -O3 -DNAM_SAMPLE_FLOAT -DNAM_ENABLE_A2_FAST \
   -I Dependencies/eigen -I Dependencies/nlohmann -I Dependencies/AudioDSPTools -I NAM \
   -std=c++20 \
-  /path/to/slopsmith-plugin-nam-tone/nam_bridge.cpp \
+  /path/to/feedBack-plugin-nam-tone/nam_bridge.cpp \
   NAM/*.cpp NAM/wavenet/*.cpp \
   -s WASM=1 -s MODULARIZE=1 -s EXPORT_NAME="NAMCore" \
   -s EXPORTED_FUNCTIONS="['_nam_create','_nam_destroy','_nam_set_sample_rate','_nam_load_model','_nam_process','_nam_is_loaded','_malloc','_free']" \
